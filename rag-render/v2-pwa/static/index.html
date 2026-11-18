@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>文件問答</title>
+<meta name="description" content="上傳 PDF / DOCX，選擇檢索策略，直接提問。">
+<meta name="theme-color" content="#f5f7f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1613" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="文件問答">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<style>
+:root{--bg:#f5f7f4;--surface:#fff;--ink:#16211c;--muted:#5d6b64;--line:#dbe3de;--accent:#0b8a64;--accent-ink:#fff;--accent-soft:#e3f4ed;--cite:#fff4d6;--cite-line:#e6cf85;--danger:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1613;--surface:#17211c;--ink:#e6efe9;--muted:#9bada4;--line:#27352e;--accent:#3cc499;--accent-ink:#04231a;--accent-soft:#12332a;--cite:#2c2610;--cite-line:#6b5a1c;--danger:#ff8a80}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.7 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.app{height:100dvh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+.top{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line);padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+.brand{min-width:0;flex:1;display:flex;flex-direction:column;line-height:1.3}
+.brand strong{font-size:16px}
+.doc{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{font-size:12px;padding:2px 10px;border-radius:99px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.pill.wait{background:var(--cite);color:var(--ink)}
+.icon-btn,.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;min-height:44px;padding:0 14px;cursor:pointer}
+.icon-btn{width:44px;padding:0;display:grid;place-items:center}
+.btn:hover,.icon-btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.small{min-height:40px;font-size:14px}
+.offline{background:var(--cite);border-bottom:1px solid var(--cite-line);padding:6px 14px;font-size:14px;text-align:center}
+.layout{flex:1;min-height:0;display:flex}
+.panel{width:320px;flex:none;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:18px}
+.panel h2{font-size:14px;margin:0 0 6px;color:var(--muted);font-weight:600}
+.panel input[type=password],.panel select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:0 12px;font-size:16px}
+.hint{font-size:13px;color:var(--muted);margin:6px 0 0;white-space:pre-line}
+.drop{display:block;border:1.5px dashed var(--line);border-radius:12px;padding:16px;text-align:center;cursor:pointer;color:var(--muted);font-size:15px}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.drop:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+fieldset{border:0;margin:0;padding:0}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:10px;cursor:pointer;min-height:44px}
+.opt:has(input:checked){background:var(--accent-soft)}
+.opt input{margin-top:6px;accent-color:var(--accent)}
+.opt b{display:block;font-weight:500;line-height:1.4}
+.opt small{color:var(--muted);line-height:1.4;display:block}
+.k{display:flex;align-items:center;gap:12px}
+.k input{flex:1;accent-color:var(--accent);min-height:44px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row .btn{flex:1}
+.chk{display:flex;gap:8px;align-items:center;font-size:15px;min-height:36px}
+.chk input{accent-color:var(--accent);width:18px;height:18px}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20}
+.chat-col{flex:1;min-width:0;display:flex;flex-direction:column}
+.chat{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:16px max(16px,env(safe-area-inset-left)) 8px max(16px,env(safe-area-inset-right))}
+.turn,.empty{max-width:780px;margin:0 auto 22px}
+.msg.user{margin-left:auto;width:fit-content;max-width:88%;background:var(--accent);color:var(--accent-ink);padding:8px 14px;border-radius:16px 16px 4px 16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.bot{margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:4px 16px 16px 16px;padding:12px 16px;overflow-wrap:anywhere}
+.msg.bot.err{border-color:var(--danger)}
+.body p{margin:0 0 .6em}.body p:last-child{margin:0}
+.body ul,.body ol{margin:.2em 0 .6em;padding-left:1.4em}
+.body h4{margin:.6em 0 .3em;font-size:1em}
+.chip{display:inline-block;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:99px;font-size:12px;line-height:1;padding:5px 9px;margin:0 2px;cursor:pointer;vertical-align:1px}
+.chip[aria-expanded=true]{background:var(--accent);color:var(--accent-ink)}
+.cite{margin-top:10px;background:var(--cite);border:1px solid var(--cite-line);border-radius:10px;padding:8px 12px;font-size:14px;line-height:1.6}
+.cite b{display:block;font-size:13px;margin-bottom:2px}
+.cite div{white-space:pre-wrap;max-height:220px;overflow:auto}
+.meta{margin-top:8px;font-size:12px;color:var(--muted)}
+details.all{margin-top:8px;font-size:14px}
+details.all summary{cursor:pointer;color:var(--muted);min-height:32px;display:flex;align-items:center}
+details.all .cite{margin-top:6px}
+.empty{text-align:center;color:var(--muted);padding:8vh 8px 0}
+.empty h1{font-size:20px;color:var(--ink);margin:0 0 6px}
+.empty p{margin:0 0 16px}
+.ex{display:flex;flex-direction:column;gap:8px;align-items:center}
+.ex .btn{max-width:100%}
+.composer{display:flex;gap:8px;align-items:flex-end;padding:10px max(12px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:var(--surface);border-top:1px solid var(--line)}
+.composer textarea{flex:1;resize:none;max-height:160px;min-height:44px;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:9px 12px;line-height:1.5;font-size:16px}
+.composer .btn{min-width:72px}
+.composer .btn:disabled{opacity:.5;cursor:progress}
+#toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:10px;font-size:14px;z-index:50;max-width:90vw}
+@media (max-width:899px){
+ .panel{position:fixed;inset:0 auto 0 0;z-index:30;width:min(88vw,340px);padding-top:calc(16px + env(safe-area-inset-top));padding-bottom:calc(16px + env(safe-area-inset-bottom));transform:translateX(-103%);transition:transform .22s ease;box-shadow:none}
+ .panel.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.25)}
+ .msg.user{max-width:92%}
+}
+@media (min-width:900px){#menuBtn,.scrim{display:none!important}.chat{padding-top:24px}}
+@media (prefers-reduced-motion:reduce){.panel{transition:none}}
+</style>
+</head>
+<body>
+<noscript>需要啟用 JavaScript 才能使用。</noscript>
+<div class="app">
+  <header class="top">
+    <button id="menuBtn" class="icon-btn" type="button" aria-label="開啟設定" aria-expanded="false" aria-controls="panel">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+    </button>
+    <div class="brand"><strong>文件問答</strong><span id="docName" class="doc">尚未載入文件</span></div>
+    <span id="engine" class="pill wait">引擎啟動中</span>
+    <button id="install" class="btn small" type="button" hidden>安裝</button>
+  </header>
+  <div id="offline" class="offline" hidden>目前離線，只能查看歷史紀錄；提問需要網路。</div>
+  <div class="layout">
+    <aside id="panel" class="panel" aria-label="設定">
+      <section>
+        <h2>Groq API Key</h2>
+        <input id="key" type="password" autocomplete="off" placeholder="gsk_…" aria-label="Groq API Key">
+        <p id="keyStatus" class="hint">Key 只存在這台裝置的瀏覽器</p>
+      </section>
+      <section>
+        <h2>模型</h2>
+        <select id="model" aria-label="模型"></select>
+      </section>
+      <section>
+        <h2>文件</h2>
+        <label class="drop" id="drop">點選或拖放 PDF / DOCX<input id="file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label>
+        <p id="upStatus" class="hint" role="status"></p>
+      </section>
+      <section>
+        <fieldset><legend><h2>檢索策略</h2></legend><div id="strategies"></div></fieldset>
+      </section>
+      <section>
+        <h2>片段數量 Top-K</h2>
+        <div class="k"><input id="topk" type="range" min="1" max="10" value="4" aria-label="片段數量"><output id="topkOut">4</output></div>
+      </section>
+      <section>
+        <h2>匯出與清除</h2>
+        <label class="chk"><input id="withSrc" type="checkbox" checked>Word 包含參考片段</label>
+        <div class="row">
+          <button id="exDocx" class="btn small" type="button">匯出 Word</button>
+          <button id="exCsv" class="btn small" type="button">匯出 CSV</button>
+        </div>
+        <div class="row" style="margin-top:8px"><button id="clear" class="btn small" type="button">清除對話</button></div>
+      </section>
+    </aside>
+    <div id="scrim" class="scrim" hidden></div>
+    <main class="chat-col">
+      <div id="chat" class="chat" role="log" aria-live="polite"></div>
+      <form id="form" class="composer">
+        <textarea id="q" rows="1" placeholder="輸入問題，Enter 送出，Shift+Enter 換行" aria-label="問題"></textarea>
+        <button id="send" class="btn primary" type="submit">送出</button>
+      </form>
+    </main>
+  </div>
+</div>
+<div id="toast" role="status" hidden></div>
+<script>
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+const sid = (() => {
+  let s = LS.get('sid');
+  if (!s) { s = ((crypto.randomUUID && crypto.randomUUID()) || Date.now() + Math.random().toString(36).slice(2)).replace(/[^A-Za-z0-9_-]/g, ''); LS.set('sid', s); }
+  return s;
+})();
+let cfg = null, records = LS.get('records', []), busy = false;
+const chat = $('#chat'), panel = $('#panel'), scrim = $('#scrim'), menuBtn = $('#menuBtn'), qEl = $('#q');
+const mq = matchMedia('(max-width:899px)');
+
+/* ── 小工具 ── */
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2600); }
+const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const chip = n => `<button class="chip" type="button" data-n="${n}" aria-expanded="false">片段${n}</button>`;
+function inline(s) {
+  return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[片段([\d、,，\s]+)\]/g, (m, ns) => ns.match(/\d+/g).map(chip).join(''));
+}
+function md(text) {
+  const out = []; let list = null;
+  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  for (const raw of text.split('\n')) {
+    const line = raw.trimEnd(); let m;
+    if (!line.trim()) { close(); continue; }
+    if (m = line.match(/^\s*#{1,6}\s+(.*)/)) { close(); out.push(`<h4>${inline(m[1])}</h4>`); }
+    else if (m = line.match(/^\s*[-*•]\s+(.*)/)) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inline(m[1])}</li>`); }
+    else if (m = line.match(/^\s*\d+[.)]\s+(.*)/)) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inline(m[1])}</li>`); }
+    else { close(); out.push(`<p>${inline(line)}</p>`); }
+  }
+  close(); return out.join('');
+}
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function citeCard(s) { const c = el('div', 'cite'); c.dataset.n = s.n; c.append(el('b', '', `片段${s.n}｜${s.label}`), el('div', '', s.text)); return c; }
+async function api(path, opt = {}) {
+  const headers = { ...(opt.headers || {}) };
+  const key = $('#key').value.trim(); if (key) headers['X-Groq-Key'] = key;
+  const res = await fetch(path, { ...opt, headers });
+  let data = null; try { data = await res.json(); } catch {}
+  if (!res.ok) throw new Error((data && (data.detail || data.message)) || `HTTP ${res.status}`);
+  return data;
+}
+
+/* ── 對話渲染 ── */
+function showEmpty() {
+  const d = el('div', 'empty');
+  d.append(el('h1', '', '上傳文件，直接提問'), el('p', '', '支援 PDF 與 DOCX。回答中的片段標籤可點開，查看原文依據。'));
+  const ex = el('div', 'ex');
+  for (const t of ['這份文件的重點是什麼？', '文件提到哪些規定或限制？', '有哪些風險或注意事項？']) {
+    const b = el('button', 'btn', t); b.type = 'button'; b.onclick = () => { qEl.value = t; qEl.focus(); grow(); }; ex.append(b);
+  }
+  d.append(ex); chat.append(d);
+}
+function renderTurn(rec, pending) {
+  const turn = el('article', 'turn');
+  const u = el('div', 'msg user', rec.q);
+  const bot = el('div', 'msg bot'); const body = el('div', 'body'); bot.append(body);
+  turn.append(u, bot); chat.append(turn);
+  if (pending) { body.textContent = '檢索與生成中…'; return { turn, u, bot, body }; }
+  fillBot(bot, body, rec); return { turn, u, bot, body };
+}
+function fillBot(bot, body, rec) {
+  bot.classList.toggle('err', rec.state === 'error');
+  body.innerHTML = md(rec.a);
+  const srcs = rec.sources || [];
+  const pop = el('div', 'pop'); bot.append(pop);
+  const m = rec.meta || {};
+  const parts = [m.strategy, m.model, m.retrieve_s != null && `檢索 ${m.retrieve_s}s`, m.generate_s != null && `生成 ${m.generate_s}s`].filter(Boolean);
+  if (parts.length) bot.append(el('div', 'meta', parts.join('　'))); 
+  if (srcs.length) {
+    const d = el('details', 'all'); d.append(el('summary', '', `檢索到的片段（${srcs.length}）`));
+    srcs.forEach(s => d.append(citeCard(s))); bot.append(d);
+  }
+  bot._srcs = srcs;
+}
+chat.addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  const bot = c.closest('.msg.bot'), n = +c.dataset.n, pop = bot.querySelector('.pop');
+  const open = pop.querySelector(`.cite[data-n="${n}"]`);
+  if (open) { open.remove(); bot.querySelectorAll(`.chip[data-n="${n}"]`).forEach(x => x.setAttribute('aria-expanded', 'false')); return; }
+  const s = (bot._srcs || []).find(x => x.n === n);
+  if (!s) { toast('找不到這個片段'); return; }
+  pop.append(citeCard(s));
+  bot.querySelectorAll(`.chip[data-n="${n}"]`).forEach(x => x.setAttribute('aria-expanded', 'true'));
+});
+function renderAll() {
+  chat.replaceChildren();
+  if (!records.length) showEmpty(); else records.forEach(r => renderTurn(r));
+  chat.scrollTop = chat.scrollHeight;
+}
+
+/* ── 提問 ── */
+function grow() { qEl.style.height = 'auto'; qEl.style.height = Math.min(qEl.scrollHeight, 160) + 'px'; }
+qEl.addEventListener('input', grow);
+qEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#form').requestSubmit(); }
+});
+$('#form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const q = qEl.value.trim(); if (!q || busy) return;
+  busy = true; $('#send').disabled = true; qEl.value = ''; grow();
+  if (!records.length) chat.replaceChildren();
+  const strategy = document.querySelector('input[name=strategy]:checked').value;
+  const sname = (cfg.strategies.find(s => s.id === strategy) || {}).name || strategy;
+  const ui = renderTurn({ q }, true); ui.u.scrollIntoView({ block: 'start' });
+  const rec = { q, a: '', sources: [], meta: {}, state: 'error', time: new Date().toLocaleString('sv-SE'), doc: LS.get('docName', ''), strategyName: sname, model: $('#model').value };
+  try {
+    const data = await api('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: sid, q, strategy, k: +$('#topk').value, model: $('#model').value }) });
+    Object.assign(rec, { a: data.answer, sources: data.sources, meta: data.meta, state: data.state, model: data.meta.model, doc: data.meta.doc || rec.doc });
+  } catch (err) {
+    rec.a = navigator.onLine ? `✗ ${err.message}` : '✗ 網路中斷，請連線後再試';
+  }
+  ui.bot.querySelector('.pop')?.remove(); fillBot(ui.bot, ui.body, rec);
+  if (rec.state !== 'error' || rec.a.startsWith('✗ 生成')) { records.push(rec); LS.set('records', records.slice(-60)); records = records.slice(-60); }
+  busy = false; $('#send').disabled = false; qEl.focus();
+});
+
+/* ── 設定面板 ── */
+function sync() { panel.inert = mq.matches && !panel.classList.contains('open'); }
+function setOpen(v) { panel.classList.toggle('open', v); scrim.hidden = !v; menuBtn.setAttribute('aria-expanded', v); sync(); if (v) $('#key').focus(); }
+menuBtn.onclick = () => setOpen(!panel.classList.contains('open'));
+scrim.onclick = () => setOpen(false);
+addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
+mq.addEventListener('change', () => setOpen(false));
+
+function fillModels(list, keep) {
+  const sel = $('#model'); const cur = keep || sel.value || LS.get('model', '');
+  sel.replaceChildren(...list.map(m => { const o = el('option', '', m); o.value = m; return o; }));
+  sel.value = list.includes(cur) ? cur : list[0];
+}
+async function checkKey() {
+  const key = $('#key').value.trim(); LS.set('key', key);
+  const st = $('#keyStatus');
+  if (!key && !cfg.server_key) { st.textContent = '⚠ 尚未設定 Key'; return; }
+  st.textContent = '驗證中…';
+  try {
+    const r = await api('/api/models', { method: 'POST' });
+    st.textContent = r.message;
+    if (r.models.length) fillModels(r.models);
+  } catch (e) { st.textContent = '✗ ' + e.message; }
+}
+$('#key').addEventListener('change', checkKey);
+$('#model').addEventListener('change', e => LS.set('model', e.target.value));
+$('#topk').addEventListener('input', e => { $('#topkOut').textContent = e.target.value; LS.set('topk', +e.target.value); });
+
+async function uploadFile(f) {
+  if (!f) return;
+  const st = $('#upStatus'); st.textContent = '解析與建立索引中…';
+  const fd = new FormData(); fd.append('session', sid); fd.append('file', f);
+  try {
+    const r = await api('/api/upload', { method: 'POST', body: fd });
+    st.textContent = r.message;
+    if (r.ok) { LS.set('docName', r.name); $('#docName').textContent = r.name; if (mq.matches) setOpen(false); }
+  } catch (e) { st.textContent = '✗ ' + e.message; }
+  $('#file').value = '';
+}
+$('#file').addEventListener('change', e => uploadFile(e.target.files[0]));
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => uploadFile(e.dataTransfer.files[0]));
+
+/* ── 匯出 / 清除 ── */
+async function exportAs(fmt) {
+  if (!records.length) { toast('目前沒有問答紀錄可匯出'); return; }
+  const rows = records.map(r => ({ 時間: r.time, 文件: r.doc, 問題: r.q, 回答: r.a, 策略: r.strategyName, 模型: r.model,
+    參考片段: (r.sources || []).map(s => `[片段${s.n}｜${s.label}]\n${s.text}`).join('\n\n') }));
+  try {
+    const res = await fetch(`/api/export/${fmt}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records: rows, with_src: $('#withSrc').checked }) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const a = el('a'); a.href = URL.createObjectURL(await res.blob());
+    a.download = `RAG問答紀錄_${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}.${fmt}`;
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) { toast('匯出失敗：' + e.message); }
+}
+$('#exDocx').onclick = () => exportAs('docx');
+$('#exCsv').onclick = () => exportAs('csv');
+$('#clear').onclick = () => { records = []; LS.set('records', []); renderAll(); if (mq.matches) setOpen(false); };
+
+/* ── PWA：安裝、離線提示、Service Worker ── */
+let deferred = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('#install').hidden = false; });
+addEventListener('appinstalled', () => { $('#install').hidden = true; deferred = null; });
+$('#install').onclick = async () => { if (!deferred) return; deferred.prompt(); await deferred.userChoice; deferred = null; $('#install').hidden = true; };
+const net = () => $('#offline').hidden = navigator.onLine;
+addEventListener('online', net); addEventListener('offline', net); net();
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+
+/* ── 啟動 ── */
+async function pollHealth() {
+  const pill = $('#engine');
+  try {
+    const h = await api('/api/health');
+    if (h.error) { pill.textContent = '引擎錯誤'; pill.title = h.error; return; }
+    if (h.ready) { pill.textContent = '引擎就緒'; pill.classList.remove('wait'); return; }
+  } catch {}
+  setTimeout(pollHealth, 2500);
+}
+(async function init() {
+  $('#key').value = LS.get('key', '');
+  const k = LS.get('topk', 4); $('#topk').value = k; $('#topkOut').textContent = k;
+  $('#docName').textContent = LS.get('docName', '') || '尚未載入文件';
+  renderAll(); sync(); pollHealth();
+  try { cfg = await api('/api/config'); }
+  catch { cfg = LS.get('cfg'); if (!cfg) { toast('無法連線到伺服器'); return; } }
+  LS.set('cfg', cfg);
+  const saved = LS.get('strategy', 'hybrid');
+  $('#strategies').replaceChildren(...cfg.strategies.map(s => {
+    const l = el('label', 'opt'); const i = el('input'); i.type = 'radio'; i.name = 'strategy'; i.value = s.id; i.checked = s.id === saved;
+    i.onchange = () => LS.set('strategy', s.id);
+    const t = el('span'); t.append(el('b', '', s.name), el('small', '', s.desc)); l.append(i, t); return l;
+  }));
+  if (!document.querySelector('input[name=strategy]:checked')) document.querySelector('input[name=strategy]').checked = true;
+  fillModels(cfg.models, LS.get('model', ''));
+  if ($('#key').value.trim() || cfg.server_key) checkKey();
+  else { $('#keyStatus').textContent = '⚠ 尚未設定 Key，請先輸入 Groq API Key'; if (mq.matches) setOpen(true); }
+})();
+</script>
+</body>
+</html>

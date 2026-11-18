@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: rag-doc-qa-gradio
+    runtime: python
+    plan: starter            # torch + 嵌入模型需要約 1GB 以上記憶體，免費 512MB 方案很可能不夠
+    buildCommand: pip install -r requirements.txt && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/multilingual-e5-small')"
+    startCommand: python app.py
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: HF_HOME
+        value: /opt/render/project/src/.hf_cache
+      - key: GROQ_API_KEY
+        sync: false
